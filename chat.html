@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        #chat-container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #message-list {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #message-input {
+            width: 70%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #send-button {
+            width: 28%;
+            padding: 10px;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <ul id="message-list"></ul>
+        <div>
+            <input type="text" id="message-input" placeholder="Type your message">
+            <button id="send-button" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <!-- Firebase scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.2.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.2.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.2.0/firebase-database.js"></script>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+        const messageList = document.getElementById('message-list');
+        const messageInput = document.getElementById('message-input');
+        let currentUser = null;
+
+        function sendMessage() {
+            const messageText = messageInput.value.trim();
+
+            if (messageText !== '') {
+                const messageRef = database.ref('messages').push();
+                messageRef.set({
+                    text: messageText,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    user: currentUser.displayName
+                });
+
+                messageInput.value = '';
+            }
+        }
+
+        function displayMessage(message) {
+            const listItem = document.createElement('li');
+            listItem.textContent = `${message.user}: ${message.text}`;
+            messageList.appendChild(listItem);
+
+            // Automatically scroll to the bottom
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                console.log(`Logged in as ${user.displayName}`);
+            } else {
+                currentUser = null;
+                console.log('User is logged out');
+            }
+        });
+
+        // Listen for new messages
+        const messagesRef = database.ref('messages');
+        messagesRef.on('child_added', (snapshot) => {
+            const message = snapshot.val();
+            displayMessage(message);
+        });
+    </script>
+
+    <!-- Google Sign-In Script -->
+    <script async defer src="https://apis.google.com/js/api.js" 
+            onload="this.onload=function(){};handleClientLoad()" 
+            onreadystatechange="if (this.readyState === 'complete') this.onload()">
+    </script>
+
+    <script>
+        function handleClientLoad() {
+            gapi.load('auth2', function () {
+                gapi.auth2.init({
+                    client_id: 'YOUR_GOOGLE_CLIENT_ID'
+                });
+            });
+        }
+
+        function signIn() {
+            gapi.auth2.getAuthInstance().signIn().then(
+                googleUser => console.log('User signed in:', googleUser),
+                error => console.error('Error signing in', error)
+            );
+        }
+
+        function signOut() {
+            gapi.auth2.getAuthInstance().signOut().then(
+                () => console.log('User signed out'),
+                error => console.error('Error signing out', error)
+            );
+        }
+    </script>
+
+    <button onclick="signIn()">Sign In with Google</button>
+    <button onclick="signOut()">Sign Out</button>
+</body>
+</html>
